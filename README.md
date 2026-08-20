@@ -54,6 +54,17 @@ GATEWAY_SANDBOX_CODE_DIR=/workspace
 5 个轮转文件。`GATEWAY_WORKSPACE_STORAGE_PATH` 保存 Workspace 的项目代码和 Git
 历史；`GATEWAY_SANDBOX_CODE_DIR` 则是代码同步进 Sandbox 后使用的远端执行路径。
 
+后台启动和管理服务：
+
+```bash
+./scripts/start.sh
+./scripts/start.sh restart
+```
+
+不传参数时默认执行 `start`。脚本只负责后台启动和重启，不解析 `.env`；端口、
+日志目录、Workspace 目录和数据库连接均由应用启动后自行加载。进程 PID 保存到
+项目根目录的 `.workspace-gateway.pid`，该文件已加入 `.gitignore`。
+
 本地接口文档：
 
 ```text
