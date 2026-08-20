@@ -67,6 +67,7 @@ class Settings:
     database_url: str | None = None
     workspace_storage_path: Path = Path("./data/workspaces")
     log_dir: Path = Path("./logs")
+    auth_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -84,9 +85,12 @@ class Settings:
                 os.getenv("GATEWAY_WORKSPACE_STORAGE_PATH", "./data/workspaces")
             ).expanduser(),
             log_dir=Path(os.getenv("GATEWAY_LOG_DIR", "./logs")).expanduser(),
+            auth_enabled=_bool("GATEWAY_AUTH_ENABLED", True),
         )
 
     def validate_gateway_auth(self) -> None:
+        if not self.auth_enabled:
+            return
         local_hosts = {"127.0.0.1", "localhost", "::1"}
         if self.api_key:
             return

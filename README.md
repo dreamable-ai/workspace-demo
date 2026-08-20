@@ -46,9 +46,14 @@ python scripts/init_database.py
 ```dotenv
 GATEWAY_PORT=8080
 GATEWAY_LOG_DIR=./logs
+GATEWAY_AUTH_ENABLED=true
 GATEWAY_WORKSPACE_STORAGE_PATH=./data/workspaces
 GATEWAY_SANDBOX_CODE_DIR=/workspace
 ```
+
+`GATEWAY_AUTH_ENABLED` 控制 REST API 和 MCP 是否校验 `GATEWAY_API_KEY`。默认值为
+`true`；设置为 `false` 时，即使监听 `0.0.0.0` 也允许无认证访问。该模式只能用于
+受信任的本地或内网测试环境，不应暴露到公网。
 
 运行日志写入 `GATEWAY_LOG_DIR/workspace-gateway.log`，单文件上限 10 MiB，保留
 5 个轮转文件。`GATEWAY_WORKSPACE_STORAGE_PATH` 保存 Workspace 的项目代码和 Git

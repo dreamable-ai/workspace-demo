@@ -135,6 +135,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def authenticate_mcp(request: Request, call_next):
         if request.url.path != "/mcp" and not request.url.path.startswith("/mcp/"):
             return await call_next(request)
+        if not resolved.auth_enabled:
+            return await call_next(request)
         if not resolved.api_key and resolved.allow_insecure_local:
             return await call_next(request)
 
@@ -255,6 +257,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def require_api_key(
         x_gateway_api_key: Annotated[str | None, Header()] = None,
     ) -> None:
+        if not resolved.auth_enabled:
+            return
         if not resolved.api_key and resolved.allow_insecure_local:
             return
         if not x_gateway_api_key or not secrets.compare_digest(

@@ -52,6 +52,17 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(sandboxes.status_code, 200)
         self.assertEqual(sandboxes.json(), [])
 
+    def test_authentication_can_be_disabled_explicitly(self) -> None:
+        unsecured_settings = replace(
+            self.settings,
+            host="0.0.0.0",
+            api_key="gateway-secret",
+            allow_insecure_local=False,
+            auth_enabled=False,
+        )
+        with TestClient(create_app(unsecured_settings)) as unsecured:
+            self.assertEqual(unsecured.get("/v1/providers").status_code, 200)
+
     def test_mcp_streamable_http_initialize(self) -> None:
         response = self.client.post(
             "/mcp",

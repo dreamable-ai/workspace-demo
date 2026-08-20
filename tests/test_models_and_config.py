@@ -17,6 +17,7 @@ class ModelsAndConfigTest(unittest.TestCase):
             {
                 "GATEWAY_PORT": "9090",
                 "GATEWAY_LOG_DIR": "/srv/workspace-gateway/logs",
+                "GATEWAY_AUTH_ENABLED": "false",
                 "GATEWAY_SANDBOX_CODE_DIR": "/sandbox/project",
                 "GATEWAY_WORKSPACE_STORAGE_PATH": "/srv/workspace-gateway/workspaces",
             },
@@ -25,6 +26,7 @@ class ModelsAndConfigTest(unittest.TestCase):
 
         self.assertEqual(settings.port, 9090)
         self.assertEqual(settings.log_dir, Path("/srv/workspace-gateway/logs"))
+        self.assertFalse(settings.auth_enabled)
         self.assertEqual(settings.sandbox_code_dir, "/sandbox/project")
         self.assertEqual(
             settings.workspace_storage_path,
