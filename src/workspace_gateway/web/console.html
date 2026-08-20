@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Workspace Gateway 代码工作区与沙箱运行控制台" />
+    <title>Workspace Gateway Console</title>
+    <link rel="stylesheet" href="/console/assets/console.css" />
+    <script src="/console/assets/console.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="/console" aria-label="Workspace Gateway 首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v8.5"/></svg>
+          </span>
+          <span><strong>Workspace</strong><small>Gateway Console</small></span>
+        </a>
+        <nav class="nav-list">
+          <a class="nav-item active" href="#overview" data-view="overview" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            总览
+          </a>
+          <a class="nav-item" href="#workspaces" data-view="workspaces">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/><path d="M8 13h8M8 16h5"/></svg>
+            Workspaces
+          </a>
+          <a class="nav-item" href="#sandboxes" data-view="sandboxes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v8.5"/></svg>
+            沙箱实例
+          </a>
+          <a class="nav-item" href="#providers" data-view="providers">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v5m0 10v5M4.9 4.9l3.5 3.5m7.2 7.2 3.5 3.5M2 12h5m10 0h5M4.9 19.1l3.5-3.5m7.2-7.2 3.5-3.5"/><circle cx="12" cy="12" r="4"/></svg>
+            Providers
+          </a>
+          <a class="nav-item" href="#templates" data-view="templates">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+            沙箱模板
+          </a>
+        </nav>
+        <div class="sidebar-foot">
+          <span class="connection-dot" id="connection-dot" aria-hidden="true"></span>
+          <div><strong id="connection-text">正在连接</strong><small>Gateway API</small></div>
+          <button class="icon-button" id="open-settings" aria-label="配置 API Key" title="配置 API Key">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+          </button>
+        </div>
+      </aside>
+
+      <main id="main-content" class="main-content" tabindex="-1">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">CONTROL PLANE</p>
+            <h1 id="page-title">沙箱运行总览</h1>
+            <p class="subtitle" id="page-subtitle">统一查看 PAI、E2B 和火山引擎沙箱的状态与配置。</p>
+          </div>
+          <div class="topbar-actions">
+            <span class="last-updated" id="last-updated">尚未更新</span>
+            <button class="button secondary" id="refresh-all">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5"/><path d="M19 11a7.5 7.5 0 1 0 .1 2"/></svg>
+              刷新
+            </button>
+            <button class="button primary" id="open-create">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              创建沙箱
+            </button>
+          </div>
+        </header>
+
+        <section id="overview" class="metric-grid view-panel" data-view-panel="overview" aria-label="关键指标">
+          <article class="metric-card accent-blue">
+            <div class="metric-head"><span>使用中</span><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="m8 5 8 7-8 7V5Z"/></svg></span></div>
+            <strong id="metric-active">—</strong>
+            <small>运行或创建中的实例</small>
+          </article>
+          <article class="metric-card accent-green">
+            <div class="metric-head"><span>运行中</span><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+            <strong id="metric-running">—</strong>
+            <small>可接受命令和文件操作</small>
+          </article>
+          <article class="metric-card accent-amber">
+            <div class="metric-head"><span>已暂停</span><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></span></div>
+            <strong id="metric-paused">—</strong>
+            <small>等待恢复或回收</small>
+          </article>
+          <article class="metric-card accent-slate">
+            <div class="metric-head"><span>Provider</span><span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M4 17h16M6 13h12M8 9h8M10 5h4"/></svg></span></div>
+            <strong id="metric-providers">—</strong>
+            <small>已完成配置的后端</small>
+          </article>
+        </section>
+
+        <section id="providers" class="section-block view-panel" data-view-panel="providers" aria-labelledby="providers-heading" hidden>
+          <div class="section-heading">
+            <div><p class="eyebrow">PROVIDER HEALTH</p><h2 id="providers-heading">接入配置</h2></div>
+            <p>仅展示非敏感配置，密钥不会返回到页面。</p>
+          </div>
+          <div id="provider-grid" class="provider-grid" aria-live="polite"></div>
+        </section>
+
+        <section id="templates" class="section-block view-panel" data-view-panel="templates" aria-labelledby="templates-heading" hidden>
+          <div class="section-heading">
+            <div><p class="eyebrow">TEMPLATE CATALOG</p><h2 id="templates-heading">沙箱模板</h2></div>
+            <div class="section-heading-actions">
+              <p>模板与 Provider 连接配置独立维护。</p>
+              <button class="button primary" id="open-template-create">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                新增模板
+              </button>
+            </div>
+          </div>
+          <div id="template-grid" class="template-grid" aria-live="polite"></div>
+          <div id="template-empty" class="catalog-empty" hidden>
+            <h3>还没有沙箱模板</h3>
+            <p>先创建一个模板，再使用它创建沙箱。</p>
+            <button class="button primary" id="empty-template-create">新增模板</button>
+          </div>
+        </section>
+
+        <section id="sandboxes" class="section-block table-section view-panel" data-view-panel="sandboxes" aria-labelledby="sandboxes-heading" hidden>
+          <div class="section-heading table-heading">
+            <div><p class="eyebrow">LIVE INVENTORY</p><h2 id="sandboxes-heading">沙箱实例</h2></div>
+            <div class="result-count" id="result-count">0 个实例</div>
+          </div>
+          <div class="filters" role="search">
+            <label class="search-field">
+              <span class="sr-only">搜索沙箱</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+              <input id="search-input" type="search" placeholder="搜索 ID、模板或工作区" autocomplete="off" />
+            </label>
+            <label>
+              <span class="sr-only">按 Provider 筛选</span>
+              <select id="provider-filter">
+                <option value="all">全部 Provider</option>
+                <option value="pai">PAI</option>
+                <option value="e2b">E2B</option>
+                <option value="volcengine">火山引擎</option>
+              </select>
+            </label>
+            <label>
+              <span class="sr-only">按状态筛选</span>
+              <select id="state-filter">
+                <option value="active">当前使用中</option>
+                <option value="all">全部状态</option>
+                <option value="running">运行中</option>
+                <option value="creating">创建中</option>
+                <option value="paused">已暂停</option>
+                <option value="error">异常</option>
+                <option value="terminated">已终止</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>实例</th><th>Provider</th><th>状态</th><th>模板</th><th>工作区</th><th>访问地址</th><th>更新时间</th><th><span class="sr-only">操作</span></th></tr></thead>
+              <tbody id="sandbox-table-body"></tbody>
+            </table>
+            <div class="empty-state" id="empty-state" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.4 7.7 7.6 4.2 7.6-4.2M12 12v8.5"/></svg>
+              <h3>没有匹配的沙箱</h3>
+              <p>调整筛选条件，或者创建一个新的 Sandbox。</p>
+              <button class="button primary" id="empty-create">创建沙箱</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="workspaces" class="section-block view-panel" data-view-panel="workspaces" aria-labelledby="workspaces-heading" hidden>
+          <div class="section-heading">
+            <div><p class="eyebrow">PERSISTENT SOURCE</p><h2 id="workspaces-heading">项目工作区</h2></div>
+            <div class="section-heading-actions">
+              <p>代码持久化在 Git 版本库中，运行时再同步到临时沙箱。</p>
+              <button class="button primary" id="open-workspace-create">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                新建 Workspace
+              </button>
+            </div>
+          </div>
+          <div id="workspace-grid" class="workspace-grid" aria-live="polite"></div>
+          <div id="workspace-empty" class="catalog-empty" hidden>
+            <h3>还没有 Workspace</h3>
+            <p>创建持久化项目空间，让 Agent 在这里写代码并保存版本。</p>
+            <button class="button primary" id="empty-workspace-create">新建 Workspace</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="detail-dialog" class="detail-dialog">
+      <div class="dialog-head">
+        <div><p class="eyebrow">SANDBOX DETAIL</p><h2>实例详情</h2></div>
+        <button class="icon-button close-dialog" aria-label="关闭详情"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div id="detail-content" class="detail-content"></div>
+      <div class="dialog-actions" id="detail-actions"></div>
+    </dialog>
+
+    <dialog id="workspace-detail-dialog" class="workspace-dialog" aria-labelledby="workspace-detail-title">
+      <div class="dialog-head">
+        <div><p class="eyebrow">GIT WORKSPACE</p><h2 id="workspace-detail-title">Workspace</h2></div>
+        <button class="icon-button close-dialog" aria-label="关闭 Workspace"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="workspace-toolbar">
+        <div><strong id="workspace-detail-id"></strong><small id="workspace-detail-version"></small></div>
+        <span class="badge" id="workspace-dirty-badge" role="status" aria-live="polite">已提交</span>
+      </div>
+      <div class="workspace-editor-layout">
+        <aside class="workspace-files">
+          <div class="workspace-pane-head"><strong>文件</strong><button class="workspace-text-button" id="workspace-new-file" type="button">+ 新建</button></div>
+          <div id="workspace-file-list" class="workspace-file-list"></div>
+        </aside>
+        <section class="workspace-editor">
+          <label><span>文件路径</span><input id="workspace-file-path" type="text" placeholder="src/app.js" spellcheck="false" /></label>
+          <label class="workspace-code-field"><span>代码内容</span><textarea id="workspace-file-content" spellcheck="false" placeholder="选择一个文件，或输入路径创建新文件"></textarea></label>
+          <p class="form-error" id="workspace-file-error" role="alert"></p>
+          <div class="workspace-editor-actions">
+            <button class="button secondary" id="workspace-save-file" type="button">保存文件</button>
+          </div>
+        </section>
+      </div>
+      <div class="workspace-bottom">
+        <section>
+          <label><span>版本说明</span><input id="workspace-commit-message" type="text" maxlength="500" value="Update project" /></label>
+          <button class="button secondary" id="workspace-commit" type="button">提交版本</button>
+        </section>
+        <section>
+          <label><span>运行命令</span><input id="workspace-run-command" type="text" value="npm test" spellcheck="false" /></label>
+          <button class="button primary" id="workspace-run" type="button">同步并运行</button>
+        </section>
+      </div>
+      <pre id="workspace-run-output" class="workspace-output" role="status" aria-live="polite" hidden></pre>
+      <section class="workspace-history-section">
+        <h3>版本记录</h3>
+        <div id="workspace-history" class="workspace-history"></div>
+      </section>
+    </dialog>
+
+    <dialog id="workspace-create-dialog" class="modal-dialog compact" aria-labelledby="workspace-create-title">
+      <form id="workspace-create-form">
+        <div class="dialog-head">
+          <div><p class="eyebrow">NEW WORKSPACE</p><h2 id="workspace-create-title">新建项目工作区</h2></div>
+          <button type="button" class="icon-button close-dialog" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="form-grid">
+          <label class="full-width"><span>项目名称 <b aria-hidden="true">*</b></span><input id="workspace-create-name" type="text" maxlength="120" required placeholder="Next.js Music Player" /></label>
+          <label class="full-width"><span>说明</span><textarea id="workspace-create-description" maxlength="1000" rows="3" placeholder="项目用途和技术栈"></textarea></label>
+        </div>
+        <p class="form-error" id="workspace-create-error" role="alert"></p>
+        <div class="dialog-actions"><button type="button" class="button secondary close-dialog">取消</button><button type="submit" class="button primary" id="workspace-create-submit">创建 Workspace</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="create-dialog" class="modal-dialog">
+      <form id="create-form">
+        <div class="dialog-head">
+          <div><p class="eyebrow">NEW SANDBOX</p><h2>创建沙箱</h2></div>
+          <button type="button" class="icon-button close-dialog" aria-label="关闭创建表单"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="form-grid">
+          <label><span>Provider <b aria-hidden="true">*</b></span><select id="create-provider" required></select><small>只建议选择已配置的 Provider。</small></label>
+          <label><span>沙箱模板 <b aria-hidden="true">*</b></span><select id="create-template" required></select><small>来自独立的沙箱模板目录。</small></label>
+          <label><span>超时时间（秒）</span><input id="create-timeout" type="number" min="30" max="86400" step="30" placeholder="900" /></label>
+          <label><span>工作区 ID</span><input id="create-workspace" type="text" maxlength="100" placeholder="ws_project_001" /></label>
+          <label class="full-width"><span>项目名称</span><input id="create-project" type="text" maxlength="100" placeholder="Next.js Demo" /></label>
+        </div>
+        <p class="form-error" id="create-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary close-dialog">取消</button>
+          <button type="submit" class="button primary" id="create-submit">创建沙箱</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settings-dialog" class="modal-dialog compact">
+      <form id="settings-form">
+        <div class="dialog-head"><div><p class="eyebrow">CONNECTION</p><h2>连接设置</h2></div><button type="button" class="icon-button close-dialog" aria-label="关闭设置"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <label class="stacked-field"><span>Gateway API Key</span><input id="api-key-input" type="password" autocomplete="off" placeholder="本地无鉴权时可留空" /><small>仅保存在当前浏览器标签页的 sessionStorage。</small></label>
+        <div class="dialog-actions"><button type="button" class="button secondary close-dialog">取消</button><button type="submit" class="button primary">保存并重连</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="provider-dialog" class="modal-dialog provider-dialog">
+      <form id="provider-form">
+        <div class="dialog-head">
+          <div><p class="eyebrow">PROVIDER CONFIG</p><h2 id="provider-dialog-title">配置 Provider</h2></div>
+          <button type="button" class="icon-button close-dialog" aria-label="关闭 Provider 配置"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="provider-form-intro">
+          <p id="provider-dialog-description">配置会保存到 Gateway 数据库并立即生效；Token 不会通过查询接口回显。</p>
+          <span class="security-note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Token 不会回传到页面</span>
+        </div>
+        <div class="form-grid provider-form-grid">
+          <label id="provider-mode-field" class="full-width" hidden>
+            <span>接入模式 <b aria-hidden="true">*</b></span>
+            <select id="provider-mode">
+              <option value="rest">REST Bridge</option>
+              <option value="e2b">E2B Compatible</option>
+            </select>
+            <small>根据火山引擎实际提供的接口类型选择。</small>
+          </label>
+          <label id="provider-endpoint-field" class="full-width">
+            <span id="provider-endpoint-label">Domain <b aria-hidden="true">*</b></span>
+            <input id="provider-endpoint" type="text" autocomplete="off" spellcheck="false" aria-describedby="provider-endpoint-help provider-domain-note" placeholder="sandbox01.cn-shanghai.pai-eas.aliyuncs.com" />
+            <small id="provider-endpoint-help">填写控制台提供的 E2B-compatible API Domain。</small>
+          </label>
+          <aside id="provider-domain-note" class="domain-format-note full-width" role="note" hidden>
+            <div class="domain-format-note-head">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+              <strong>E2B Domain 只填写基础域名</strong>
+            </div>
+            <div class="domain-format-examples">
+              <p><span class="format-badge correct">正确</span><code id="provider-domain-correct">sandbox01.cn-shanghai.pai-eas.aliyuncs.com</code></p>
+              <p><span class="format-badge incorrect">错误</span><code id="provider-domain-wrong">https://api.sandbox01.cn-shanghai.pai-eas.aliyuncs.com</code></p>
+            </div>
+            <small id="provider-domain-reason">不要包含 <code>http://</code>、<code>https://</code> 或 <code>api.</code> 前缀；E2B SDK 会自动拼接访问地址。</small>
+          </aside>
+          <label class="full-width">
+            <span>API Token <b aria-hidden="true">*</b></span>
+            <input id="provider-api-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="输入 Provider Token" />
+            <small id="provider-api-key-help">保存后不会显示；已配置时留空表示保持原 Token。</small>
+          </label>
+          <label class="full-width">
+            <span>默认超时（秒） <b aria-hidden="true">*</b></span>
+            <input id="provider-timeout" type="number" min="30" max="86400" step="30" value="900" />
+            <small>连接级默认值；每个模板可以单独覆盖。</small>
+          </label>
+        </div>
+        <p class="form-error" id="provider-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary close-dialog">取消</button>
+          <button type="submit" class="button primary" id="provider-submit">保存配置</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="template-dialog" class="modal-dialog">
+      <form id="template-form">
+        <div class="dialog-head">
+          <div><p class="eyebrow">NEW TEMPLATE</p><h2>新增沙箱模板</h2></div>
+          <button type="button" class="icon-button close-dialog" aria-label="关闭模板表单"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="form-grid">
+          <label><span>Provider <b aria-hidden="true">*</b></span><select id="template-provider" required></select><small>模板归属于一个 Provider。</small></label>
+          <label><span>显示名称 <b aria-hidden="true">*</b></span><input id="template-name" type="text" maxlength="120" required placeholder="PAI Code Interpreter" /></label>
+          <label class="full-width"><span>厂商 Template ID <b aria-hidden="true">*</b></span><input id="template-provider-id" type="text" maxlength="255" required spellcheck="false" placeholder="code-interpreter" /><small>创建沙箱时传给对应厂商的真实模板标识。</small></label>
+          <label><span>默认超时（秒） <b aria-hidden="true">*</b></span><input id="template-timeout" type="number" min="30" max="86400" step="30" value="900" required /></label>
+          <label class="template-default-field full-width">
+            <span class="checkbox-line"><input id="template-is-default" type="checkbox" /><span>设为 MCP 默认模板</span></span>
+            <small>MCP 创建沙箱时不接收 Provider 或 Template ID，将始终使用这里选定的默认模板；首次新增 <code>code-interpreter</code> 时会自动设为默认。</small>
+          </label>
+          <label class="full-width"><span>说明</span><textarea id="template-description" maxlength="1000" rows="3" placeholder="适用于 Node.js / Next.js Coding Agent"></textarea></label>
+        </div>
+        <p class="form-error" id="template-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="button secondary close-dialog">取消</button>
+          <button type="submit" class="button primary" id="template-submit">保存模板</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="modal-dialog compact">
+      <div class="dialog-head"><div><p class="eyebrow danger-text">DESTRUCTIVE ACTION</p><h2>确认销毁沙箱</h2></div><button class="icon-button close-dialog" aria-label="关闭确认框"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <p>该操作会终止远程实例，未持久化的工作区内容可能丢失。</p>
+      <div class="confirm-id" id="confirm-id"></div>
+      <div class="dialog-actions"><button class="button secondary close-dialog">取消</button><button class="button danger" id="confirm-kill">确认销毁</button></div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
