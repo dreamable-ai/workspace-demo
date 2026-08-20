@@ -103,6 +103,11 @@ class E2BCompatibleProvider:
             running = await asyncio.to_thread(raw.is_running)
             return SandboxState.RUNNING if running else SandboxState.UNKNOWN
         except Exception as exc:
+            # E2B-compatible control planes report an expired or already deleted
+            # sandbox as not found. This is a terminal state, not an operation
+            # failure that callers should keep retrying forever.
+            if type(exc).__name__ == "SandboxNotFoundException":
+                return SandboxState.TERMINATED
             raise ProviderOperationError(
                 f"{self.provider_name.value} status failed: {exc}"
             ) from exc
@@ -214,9 +219,19 @@ class E2BCompatibleProvider:
 
     async def kill(self, sandbox_id: str) -> None:
         try:
-            raw = await asyncio.to_thread(self._connect_sync, sandbox_id)
-            await asyncio.to_thread(raw.kill)
+            sandbox_class = self._sandbox_class()
+            # Use the SDK's class-level kill operation. It calls the control
+            # plane directly and returns False when the sandbox no longer
+            # exists. Connecting first makes an already completed deletion
+            # fail before the idempotent delete request can be sent.
+            await asyncio.to_thread(
+                sandbox_class.kill,
+                sandbox_id,
+                **self._connection_args(),
+            )
         except Exception as exc:
+            if type(exc).__name__ == "SandboxNotFoundException":
+                return
             raise ProviderOperationError(
                 f"{self.provider_name.value} kill failed: {exc}"
             ) from exc

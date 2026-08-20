@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
+import logging
 import os
 import re
 import shlex
 import subprocess
 import threading
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path, PurePosixPath
+from typing import TypeVar
 
 from .errors import (
+    GatewayError,
+    ProviderOperationError,
     WorkspaceConflictError,
     WorkspaceNotFoundError,
     WorkspacePathError,
@@ -39,6 +45,11 @@ from .storage import SandboxStore, WorkspaceRecord, WorkspaceRunRecord
 _VERSION_PATTERN = re.compile(r"^[0-9a-fA-F]{7,40}$")
 _MAX_WORKSPACE_FILE_BYTES = 10_000_000
 _MAX_ARCHIVE_BYTES = 100_000_000
+_SYNC_PROVIDER_RETRY_DELAYS = (1.0, 2.0, 4.0)
+_T = TypeVar("_T")
+
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceService:
@@ -57,6 +68,29 @@ class WorkspaceService:
 
     def open(self) -> None:
         self.storage_root.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    async def _retry_sync_provider_operation(
+        operation: Callable[[], Awaitable[_T]],
+    ) -> _T:
+        """Retry only idempotent Workspace staging operations.
+
+        A newly created PAI/E2B-compatible sandbox can be visible in the
+        control plane before its file and command channels are ready. The
+        final user command is deliberately excluded because retrying an
+        ambiguous command could execute it twice.
+        """
+
+        attempts = (0.0, *_SYNC_PROVIDER_RETRY_DELAYS)
+        for attempt, delay in enumerate(attempts):
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                return await operation()
+            except ProviderOperationError:
+                if attempt == len(attempts) - 1:
+                    raise
+        raise AssertionError("unreachable")
 
     def _record(self, workspace_id: str) -> WorkspaceRecord:
         record = self.store.get_workspace(workspace_id)
@@ -319,25 +353,25 @@ class WorkspaceService:
         archive_path = f"{sandbox_code_dir}/.workspace-gateway-source.tar.gz"
         quoted_code_dir = shlex.quote(sandbox_code_dir)
         quoted_archive_path = shlex.quote(archive_path)
-        await self.sandbox_service.write_file(
-            sandbox_id,
-            FileWriteRequest(
-                path=archive_path,
-                content_base64=base64.b64encode(archive).decode(),
-            ),
+        write_request = FileWriteRequest(
+            path=archive_path,
+            content_base64=base64.b64encode(archive).decode(),
         )
-        extract = await self.sandbox_service.run_command(
-            sandbox_id,
-            CommandRequest(
-                command=(
-                    f"find {quoted_code_dir} -mindepth 1 -maxdepth 1 "
-                    "! -name .workspace-gateway-source.tar.gz -exec rm -rf -- {} + && "
-                    f"tar -xzf {quoted_archive_path} -C {quoted_code_dir} && "
-                    f"rm -f {quoted_archive_path}"
-                ),
-                cwd=sandbox_code_dir,
-                timeout_seconds=120,
+        await self._retry_sync_provider_operation(
+            lambda: self.sandbox_service.write_file(sandbox_id, write_request)
+        )
+        extract_request = CommandRequest(
+            command=(
+                f"find {quoted_code_dir} -mindepth 1 -maxdepth 1 "
+                "! -name .workspace-gateway-source.tar.gz -exec rm -rf -- {} + && "
+                f"tar -xzf {quoted_archive_path} -C {quoted_code_dir} && "
+                f"rm -f {quoted_archive_path}"
             ),
+            cwd=sandbox_code_dir,
+            timeout_seconds=120,
+        )
+        extract = await self._retry_sync_provider_operation(
+            lambda: self.sandbox_service.run_command(sandbox_id, extract_request)
         )
         if extract.exit_code != 0:
             raise WorkspaceConflictError(
@@ -390,16 +424,30 @@ class WorkspaceService:
         else:
             sandbox = await self.sandbox_service.get(request.sandbox_id)
 
-        await self.sync(workspace_id, sandbox.id, version)
-        result = await self.sandbox_service.run_command(
-            sandbox.id,
-            CommandRequest(
-                command=request.command,
-                cwd=str(self.sandbox_service.sandbox_code_dir),
-                timeout_seconds=request.timeout_seconds,
-                env=request.env,
-            ),
-        )
+        try:
+            await self.sync(workspace_id, sandbox.id, version)
+            result = await self.sandbox_service.run_command(
+                sandbox.id,
+                CommandRequest(
+                    command=request.command,
+                    cwd=str(self.sandbox_service.sandbox_code_dir),
+                    timeout_seconds=request.timeout_seconds,
+                    env=request.env,
+                ),
+            )
+        except Exception:
+            if created_sandbox:
+                try:
+                    await self.sandbox_service.kill(sandbox.id)
+                except GatewayError as cleanup_error:
+                    # Preserve the original synchronization/execution error.
+                    # The failed cleanup can be retried from the management UI.
+                    logger.warning(
+                        "Failed to clean up sandbox %s after Workspace run failure: %s",
+                        sandbox.id,
+                        cleanup_error,
+                    )
+            raise
         run_id = f"run_{uuid.uuid4().hex}"
         now = utc_now()
         self.store.insert_workspace_run(

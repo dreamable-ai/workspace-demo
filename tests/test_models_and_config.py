@@ -2,15 +2,25 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from pydantic import ValidationError
 
-from workspace_gateway.config import E2BProviderSettings, Settings
+from workspace_gateway.config import E2BProviderSettings, Settings, load_settings
 from workspace_gateway.models import FileWriteRequest, ProviderConfigurationRequest
 
 
 class ModelsAndConfigTest(unittest.TestCase):
+    def test_project_dotenv_overrides_existing_process_environment(self) -> None:
+        with TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env"
+            env_file.write_text("GATEWAY_HOST=0.0.0.0\n", encoding="utf-8")
+            with patch.dict("os.environ", {"GATEWAY_HOST": "127.0.0.1"}):
+                settings = load_settings(env_file)
+
+        self.assertEqual(settings.host, "0.0.0.0")
+
     def test_runtime_paths_and_port_are_loaded_from_environment(self) -> None:
         with patch.dict(
             "os.environ",

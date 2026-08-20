@@ -12,7 +12,7 @@ from sqlalchemy.engine import make_url
 
 
 def main() -> None:
-    load_dotenv(Path.cwd() / ".env", override=False)
+    load_dotenv(Path.cwd() / ".env", override=True)
     raw_url = os.getenv("GATEWAY_DATABASE_URL", "")
     if not raw_url:
         raise SystemExit("GATEWAY_DATABASE_URL is not configured")

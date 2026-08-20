@@ -3,15 +3,17 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mcp import Client
 from test_service import FakeProvider, FakeRegistry
 
-from workspace_gateway.errors import WorkspacePathError
+from workspace_gateway.errors import ProviderOperationError, WorkspacePathError
 from workspace_gateway.mcp_server import create_mcp_server
 from workspace_gateway.models import (
     CreateSandboxRequest,
     ProviderName,
+    SandboxState,
     WorkspaceRunRequest,
     utc_now,
 )
@@ -99,6 +101,71 @@ class WorkspaceServiceTest(unittest.IsolatedAsyncioTestCase):
         runs = self.store.list_workspace_runs(workspace.id)
         self.assertEqual(runs[0].sandbox_id, run.sandbox.id)
         self.assertEqual(runs[0].version, run.version)
+
+    async def test_sync_retries_transient_provider_file_failure(self) -> None:
+        workspace = self.service.create("Retry sync")
+        self.service.write_file(workspace.id, "index.js", text="console.log('ok')")
+        commit = self.service.commit(workspace.id, "Add app")
+        sandbox = await self.sandbox_service.create(
+            CreateSandboxRequest(provider=ProviderName.PAI)
+        )
+        original_write = self.provider.write_file
+        attempts = 0
+
+        async def flaky_write(*args: object, **kwargs: object) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise ProviderOperationError("sandbox channel is not ready")
+            await original_write(*args, **kwargs)  # type: ignore[arg-type]
+
+        self.provider.write_file = flaky_write  # type: ignore[method-assign]
+        with patch(
+            "workspace_gateway.workspace_service._SYNC_PROVIDER_RETRY_DELAYS",
+            (0.0,),
+        ):
+            synced = await self.service.sync(
+                workspace.id, sandbox.id, commit.version.version
+            )
+
+        self.assertEqual(attempts, 2)
+        self.assertEqual(synced.version, commit.version.version)
+
+    async def test_run_cleans_up_new_sandbox_when_sync_never_becomes_ready(self) -> None:
+        workspace = self.service.create("Failed sync")
+        self.service.write_file(workspace.id, "index.js", text="console.log('ok')")
+        now = utc_now()
+        self.store.insert_template(
+            SandboxTemplateRecord(
+                id="tpl_cleanup",
+                provider=ProviderName.PAI,
+                template_id="code-interpreter",
+                name="Code Interpreter",
+                description="",
+                default_timeout_seconds=900,
+                created_at=now,
+                updated_at=now,
+                is_default=True,
+            )
+        )
+
+        async def failed_write(*_: object, **__: object) -> None:
+            raise ProviderOperationError("sandbox channel is not ready")
+
+        self.provider.write_file = failed_write  # type: ignore[method-assign]
+        with patch(
+            "workspace_gateway.workspace_service._SYNC_PROVIDER_RETRY_DELAYS",
+            (0.0,),
+        ), self.assertRaises(ProviderOperationError):
+            await self.service.run(
+                workspace.id,
+                WorkspaceRunRequest(command="node index.js"),
+            )
+
+        sandboxes = self.sandbox_service.list()
+        self.assertEqual(len(sandboxes), 1)
+        self.assertEqual(sandboxes[0].state, SandboxState.TERMINATED)
+        self.assertTrue(self.provider.killed)
 
     async def test_mcp_exposes_workspace_without_provider_catalog(self) -> None:
         mcp = create_mcp_server(self.sandbox_service, self.service)

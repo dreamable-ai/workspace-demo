@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 def _bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -99,3 +101,9 @@ class Settings:
         raise ValueError(
             "Set GATEWAY_API_KEY unless the Gateway is explicitly limited to localhost"
         )
+
+
+def load_settings(env_file: Path | None = None) -> Settings:
+    """Load project configuration, with values in .env taking precedence."""
+    load_dotenv(env_file or Path.cwd() / ".env", override=True)
+    return Settings.from_env()

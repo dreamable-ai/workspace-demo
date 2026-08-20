@@ -51,6 +51,9 @@ GATEWAY_WORKSPACE_STORAGE_PATH=./data/workspaces
 GATEWAY_SANDBOX_CODE_DIR=/workspace
 ```
 
+Gateway 启动时以项目根目录 `.env` 为准；同名的 Shell 环境变量不会覆盖该文件，
+避免开发机中残留的 `GATEWAY_HOST`、`GATEWAY_PORT` 等变量导致配置不生效。
+
 `GATEWAY_AUTH_ENABLED` 控制 REST API 和 MCP 是否校验 `GATEWAY_API_KEY`。默认值为
 `true`；设置为 `false` 时，即使监听 `0.0.0.0` 也允许无认证访问。该模式只能用于
 受信任的本地或内网测试环境，不应暴露到公网。

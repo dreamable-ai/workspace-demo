@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
 from contextlib import asynccontextmanager
@@ -13,12 +14,11 @@ from urllib.parse import urlencode
 
 import httpx
 import uvicorn
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .config import Settings
+from .config import Settings, load_settings
 from .errors import (
     GatewayError,
     ProviderConfigurationError,
@@ -68,6 +68,8 @@ from .registry import ProviderRegistry
 from .service import SandboxGatewayService
 from .storage import SandboxStore, SandboxTemplateRecord
 from .workspace_service import WorkspaceService
+
+logger = logging.getLogger(__name__)
 
 
 def _uvicorn_log_config(log_dir: Path) -> dict[str, object]:
@@ -289,6 +291,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         elif isinstance(exc, ProviderOperationError):
             status = 502
             detail = "The sandbox provider operation failed"
+            logger.error(
+                "Sandbox provider operation failed: %s",
+                exc,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
         return JSONResponse(
             status_code=status,
             content={"error": type(exc).__name__, "detail": detail},
@@ -598,8 +605,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def main() -> None:
-    load_dotenv(Path.cwd() / ".env", override=False)
-    settings = Settings.from_env()
+    settings = load_settings()
     uvicorn.run(
         create_app(settings),
         host=settings.host,

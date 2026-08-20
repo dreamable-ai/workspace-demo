@@ -23,6 +23,7 @@ class FakeProvider:
     def __init__(self) -> None:
         self.files: dict[str, bytes] = {}
         self.killed = False
+        self.kill_calls = 0
 
     @property
     def capabilities(self) -> ProviderCapabilities:
@@ -63,6 +64,7 @@ class FakeProvider:
 
     async def kill(self, _id: str) -> None:
         self.killed = True
+        self.kill_calls += 1
 
 
 class FakeRegistry:
@@ -106,6 +108,10 @@ class ServiceTest(unittest.IsolatedAsyncioTestCase):
         killed = await self.service.kill(sandbox.id)
         self.assertEqual(killed.state, SandboxState.TERMINATED)
         self.assertTrue(self.provider.killed)
+
+        killed_again = await self.service.kill(sandbox.id)
+        self.assertEqual(killed_again.state, SandboxState.TERMINATED)
+        self.assertEqual(self.provider.kill_calls, 1)
 
     async def test_rejects_path_outside_workspace(self) -> None:
         sandbox = await self.service.create(CreateSandboxRequest(provider=ProviderName.PAI))
